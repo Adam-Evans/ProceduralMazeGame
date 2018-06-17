@@ -23,11 +23,18 @@ public class RecursiveBacktraceMaze : MonoBehaviour
 
     //doesn't need to be public, just easier to debug this way.
     [Header("Grid")]
-    public Grid _grid;
-    public GameObject wallModel;
-    public GameObject[,] _wallsHorizontal;
-    public GameObject[,] _wallsVert;
-    GameObject wallHolder;
+    public Grid _grid; 
+    public GameObject wallModel; // prefab used to instantiate walls
+    GameObject wallHolder; // empty game object used to parent walls to for organisation. 
+
+    [Header("Quad Wall settings")]
+    public GameObject[,] _wallsHorizontal; //2d array of horizontal walls for quad maze
+    public GameObject[,] _wallsVert; // 2d array of vertical walls for quad maze
+
+    [Header("Hex Wall settings")]
+    public GameObject[,] _wallsHexVert; // 2d array of vertical walls
+    public GameObject[,] _wallsHexDown; // 2d array of down sloped walls
+    public GameObject[,] _wallsHexUp; // 2d array of upwards sloped walls
 
 
     // Use this for initialization
@@ -44,7 +51,7 @@ public class RecursiveBacktraceMaze : MonoBehaviour
             generateWallsQuad();
             Thread.Sleep(100);
             setNodeNeighoursQuad();
-            StartCoroutine(backTraceMaze());
+            StartCoroutine(backTraceMazeQuad());
         }
         else if (_wallType == wallType.hex)
         {
@@ -84,27 +91,28 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                 if (x == _gridWidth && y < _gridLength)
                 {
                     //special case to close outer loop.
-                    GameObject temp1 = (GameObject)Instantiate(wallModel, new Vector3(x * _WallWidth - (_WallWidth / 2), 0, y * _WallHeight - (_WallHeight / 2)), transform.rotation, wallHolder.transform);
-                    temp1.transform.Rotate(90, 90, 0);
+                    GameObject temp1 = Instantiate(wallModel, new Vector3(x * _WallWidth - _WallWidth, 0, y * _WallHeight - (_WallHeight / 2)), transform.rotation, wallHolder.transform);
+                    temp1.transform.Rotate(-90, 90, 0);
                     temp1.name = "vert" + x + "," + y;
                     _wallsVert[x, y] = temp1;
                 }
                 else if (y == _gridLength && x < _gridWidth)
                 {
                     //special case to close outer loop
-                    GameObject temp2 = (GameObject)Instantiate(wallModel, new Vector3(x * _WallWidth - (_WallWidth / 2), 0, y * _WallHeight - (_WallHeight / 2)), transform.rotation, wallHolder.transform);
+                    GameObject temp2 = Instantiate(wallModel, new Vector3(x * _WallWidth - (_WallWidth / 2), 0, y * _WallHeight - _WallHeight), transform.rotation, wallHolder.transform);
                     _wallsHorizontal[x, y] = temp2;
                     temp2.name = "hor" + x + "," + y;
-                    temp2.transform.Rotate(90, 180, 0);
+                    temp2.transform.Rotate(-90, 180, 0);
                 }
                 else if (y < _gridLength && x < _gridWidth)
                 {
-                    GameObject tempGO = (GameObject)Instantiate(wallModel, new Vector3(x * _WallWidth - (_WallWidth / 2), 0, y * _WallHeight - (_WallHeight / 2)), transform.rotation, wallHolder.transform);
+                    GameObject tempGO = Instantiate(wallModel, new Vector3(x * _WallWidth - (_WallWidth / 2), 0, y * _WallHeight - _WallHeight), transform.rotation, wallHolder.transform);
                     tempGO.name = "hor" + x + "," + y;
                     _wallsHorizontal[x, y] = tempGO;
-                    tempGO.transform.Rotate(90, 180, 0);
-                    tempGO = (GameObject)Instantiate(wallModel, new Vector3(x * _WallWidth - (_WallWidth / 2), 0, y * _WallHeight - (_WallHeight / 2)), transform.rotation, wallHolder.transform);
-                    tempGO.transform.Rotate(90, 90, 0);
+                    tempGO.transform.Rotate(-90, 180, 0);
+
+                    tempGO = Instantiate(wallModel, new Vector3(x * _WallWidth - _WallWidth, 0, y * _WallHeight - (_WallHeight / 2)), transform.rotation, wallHolder.transform);
+                    tempGO.transform.Rotate(-90, 90, 0);
                     tempGO.name = "vert" + x + "," + y;
                     _wallsVert[x, y] = tempGO;
                 }
@@ -115,11 +123,222 @@ public class RecursiveBacktraceMaze : MonoBehaviour
     }
 
     /// <summary>
-    /// not implemented yet, this will follow a similar procedure but with walls divided into 6 groups and using 6 neighbours on nodes. 
+    /// Hex grid is organised as a honeycomb: lines will alternate between widths of gridwidth and gridwidth -1.Each node will require 6 neighbours and share at least 3 walls between 2 nodes allowing
+    /// for more freedom in navigating random paths.
+    /// Vertical hex lines alternate as: gridwidth + 1 and gridwidth + 2. For simplicity it is easier to force an even gridlength to have equal numbers of each possible width. 
     /// </summary>
     private void generateWallsHex()
     {
-        throw new NotImplementedException();
+        if (_gridLength % 2 != 0)
+            _gridLength += 1;
+        //For ease of construction, the array marking coords of the wall should be the larger of the 2 possible values, 
+        //leaving the extra as null. Later check if the index is null before applying to nodes
+
+        //vert walls make left and right boundary so width + 1
+        _wallsHexVert = new GameObject[_gridWidth + 1, _gridLength];
+        //sloped walls make the top and bottom so length is +1
+        _wallsHexDown = new GameObject[_gridWidth, _gridLength + 1];
+        _wallsHexUp = new GameObject[_gridWidth, _gridLength + 1];
+
+        wallHolder = new GameObject();
+        wallHolder.transform.position = new Vector3(0, 0, 0);
+        wallHolder.name = "wallHolder";
+        wallHolder.transform.rotation = wallModel.transform.rotation;
+        GameObject tempGO;
+        Vector3 pos;
+        Vector3 translate;
+        float hexWidth = _WallWidth * (float)Mathf.Sqrt(3);
+        float hexTriHeight = (hexWidth - _WallWidth) / 2;
+        float difference = hexWidth - _WallWidth;
+        float depthAdjust = 0.25f;
+
+        bool alt = false;
+        bool flip = false;
+        int correction = 0;
+        //Note: given that a hexagon can be broken down into 6 triangles, the radius and thus spacing of walls is found using the 90/60/30 rule giving radius = line width * root 3 (root 3 from sin60)
+        for (int y = 0; y < _gridLength + 1; y++) // + 1 is a special case for boundaries only
+        {
+            for (int x = 0; x < _gridWidth + 1; x++)
+            { 
+                if (x == _gridWidth && y < _gridLength) // closing boundary - rightmost wall
+                {
+                    if (alt)
+                    {
+                        pos = new Vector3((x * hexWidth - ((hexWidth - _WallWidth) / 2) - depthAdjust) - (hexWidth / 2),
+                           0, (y * hexWidth) - (hexWidth - _WallWidth) / 2 + 1 - correction);
+                        tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                        tempGO.name = "vertalt" + x + "," + y;
+                        tempGO.transform.Rotate(-90, 90, 0);
+                        translate = new Vector3((_WallWidth * (float)Math.Sqrt(3) / 2), 0, 0);
+                        tempGO.transform.Translate(translate);
+                        tempGO.transform.parent = wallHolder.transform;
+                    }                    
+                }
+                else if (y == _gridLength && x < _gridWidth) //top boundary case
+                {
+                    pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth - 1 - correction + _WallWidth / 2);
+                    tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                    tempGO.name = "down" + x + "," + y;
+                    tempGO.transform.parent = wallHolder.transform;
+                    tempGO.transform.Rotate(-90, -150, 0);
+
+                    pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth -1 - correction + _WallWidth / 2);
+                    tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                    tempGO.name = "up" + x + "," + y;
+                    tempGO.transform.parent = wallHolder.transform;
+                    tempGO.transform.Rotate(-90, -30, 0);
+                }
+                else if (y < _gridLength && x < _gridWidth)
+                {
+                    if (alt)
+                    {
+                        pos = new Vector3((x * hexWidth - ((hexWidth - _WallWidth) / 2) - depthAdjust) - (hexWidth / 2),
+                            0,(y * hexWidth) - (hexWidth - _WallWidth) / 2 + 1 - correction);
+                        tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                        tempGO.name = "vertalt" + x + "," + y;
+                        tempGO.transform.Rotate(-90, 90, 0);
+                        translate = new Vector3((_WallWidth * (float)Math.Sqrt(3) / 2), 0, 0);
+                        tempGO.transform.Translate(translate);
+                        tempGO.transform.parent = wallHolder.transform;
+
+                        if (flip)
+                        {
+                            pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth - correction);
+                            tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                            tempGO.name = "downaltflip" + x + "," + y;
+                            tempGO.transform.parent = wallHolder.transform;
+                            tempGO.transform.Rotate(-90, -30, 0);
+
+                            pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth - correction);
+                            tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                            tempGO.name = "upaltflip" + x + "," + y;
+                            tempGO.transform.parent = wallHolder.transform;
+                            tempGO.transform.Rotate(-90, -150, 0);
+                        }
+                        else
+                        {
+                            pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth - correction);
+                            tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                            tempGO.name = "downalt" + x + "," + y;
+                            tempGO.transform.parent = wallHolder.transform;
+                            tempGO.transform.Rotate(-90, -150, 0);
+
+                            pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth - correction);
+                            tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                            tempGO.name = "upalt" + x + "," + y;
+                            tempGO.transform.parent = wallHolder.transform;
+                            tempGO.transform.Rotate(-90, -30, 0);
+                        }
+                    }
+                    else
+                    {
+                        pos = new Vector3(x * hexWidth - ((hexWidth - _WallWidth) / 2) - depthAdjust,
+                            0, (y * hexWidth) + (hexWidth - _WallWidth) / 2 - 1 - correction);
+                        tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                        tempGO.name = "vert" + x + "," + y;
+                        tempGO.transform.Rotate(-90, 90, 0);
+                        translate = new Vector3((hexWidth / 2), 0, 0);
+                        tempGO.transform.Translate(translate);
+                        tempGO.transform.parent = wallHolder.transform;
+
+                        if (y == 0 && x == 0)
+                        {
+                            if (flip)
+                            {
+                                pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth + 1 - correction);
+                                tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                                tempGO.name = "downflip" + x + "," + y;
+                                tempGO.transform.parent = wallHolder.transform;
+                                tempGO.transform.Rotate(-90, -30, 0);
+
+                                pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth + 1 - correction);
+                                tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                                tempGO.name = "upflip" + x + "," + y;
+                                tempGO.transform.parent = wallHolder.transform;
+                                tempGO.transform.Rotate(-90, -150, 0);
+                            }
+                            else
+                            {
+                                pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth + 1 - correction);
+                                tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                                tempGO.name = "down" + x + "," + y;
+                                tempGO.transform.parent = wallHolder.transform;
+                                tempGO.transform.Rotate(-90, -150, 0);
+                            }
+                        }
+
+                        else if (y == 0 && x == 24)
+                        {
+                            if (flip)
+                            {
+                                pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth + 1 - correction);
+                                tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                                tempGO.name = "downflip" + x + "," + y;
+                                tempGO.transform.parent = wallHolder.transform;
+                                tempGO.transform.Rotate(-90, -30, 0);
+
+                                pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth + 1 - correction);
+                                tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                                tempGO.name = "upflip" + x + "," + y;
+                                tempGO.transform.parent = wallHolder.transform;
+                                tempGO.transform.Rotate(-90, -150, 0);
+                            }
+                            else
+                            {
+                                pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth + 1 - correction);
+                                tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                                tempGO.name = "up" + x + "," + y;
+                                tempGO.transform.parent = wallHolder.transform;
+                                tempGO.transform.Rotate(-90, -30, 0);
+                            }
+                        }
+
+                        else
+                        {
+                            if (flip)
+                        {
+                            pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth + 1 - correction);
+                            tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                            tempGO.name = "downflip" + x + "," + y;
+                            tempGO.transform.parent = wallHolder.transform;
+                            tempGO.transform.Rotate(-90, -30, 0);
+
+                            pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth + 1 - correction);
+                            tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                            tempGO.name = "upflip" + x + "," + y;
+                            tempGO.transform.parent = wallHolder.transform;
+                            tempGO.transform.Rotate(-90, -150, 0);
+                        }
+                        else
+                        {
+                            pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth + 1 - correction);
+                            tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                            tempGO.name = "down" + x + "," + y;
+                            tempGO.transform.parent = wallHolder.transform;
+                            tempGO.transform.Rotate(-90, -150, 0);
+
+                            pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth + 1 - correction);
+                            tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
+                            tempGO.name = "up" + x + "," + y;
+                            tempGO.transform.parent = wallHolder.transform;
+                            tempGO.transform.Rotate(-90, -30, 0);
+                        }
+                        }
+
+                        
+                    }
+
+
+                   
+                }
+                flip = !flip;
+            }
+            alt = !alt;
+            if (!alt)
+            {
+                correction += 2;
+            }
+        }
     }
 
     /// <summary>
@@ -144,7 +363,7 @@ public class RecursiveBacktraceMaze : MonoBehaviour
     }
 
 
-    private IEnumerator backTraceMaze()
+    public IEnumerator backTraceMazeQuad()
     {
         //When navigating nodes, up = +gridWidth, down = -gridwidth, left = -1, right = +1
         System.Random rng = new System.Random();
@@ -415,6 +634,8 @@ public class RecursiveBacktraceMaze : MonoBehaviour
         visited.Clear();
     }
 
+
+
     public IEnumerator NewMaze()
     {
         Destroy(wallHolder);
@@ -429,7 +650,7 @@ public class RecursiveBacktraceMaze : MonoBehaviour
             yield return new WaitForSeconds(0.001f);
             setNodeNeighoursQuad();
             yield return new WaitForSeconds(0.001f);
-            StartCoroutine(backTraceMaze());
+            StartCoroutine(backTraceMazeQuad());
         }
     }
 
@@ -446,4 +667,9 @@ public enum wallType
 {
     quad,
     hex
+}
+
+public enum mazeType
+{
+    backtrace
 }
