@@ -43,19 +43,25 @@ public class RecursiveBacktraceMaze : MonoBehaviour
         //this should work but doesn't for some reason, for now add wall prefab in inspector. 
         //wallModel = (GameObject)Resources.Load("Assets/Prefabs/Walls/WallPrefab") as GameObject;
 
-        _grid = new Grid(_gridWidth, _gridLength);
-        _grid.setupGrid();
+       
 
         if (_wallType == wallType.quad)
-        {
+        {           
             generateWallsQuad();
-            Thread.Sleep(100);
+            _grid = new Grid(_gridWidth, _gridLength);
+            _grid.setupQuadGrid();
+            Thread.Sleep(5);
             setNodeNeighoursQuad();
             StartCoroutine(backTraceMazeQuad());
         }
         else if (_wallType == wallType.hex)
         {
             generateWallsHex();
+            _grid = new Grid(_gridWidth, _gridLength);
+            _grid.setupHexGrid();
+            Thread.Sleep(5);
+            setNodeNeighboursHex();
+            StartCoroutine(backTraceMazeHex());
         }
     }
 
@@ -68,6 +74,8 @@ public class RecursiveBacktraceMaze : MonoBehaviour
             StartCoroutine(NewMaze());
         }
     }
+
+   
 
     /// <summary>
     /// This method will create two grids of walls represented as two 2d vectors, totalling 4 walls per node allowing for each to have neighbours set to a wall gameobject which may later be removed 
@@ -127,7 +135,7 @@ public class RecursiveBacktraceMaze : MonoBehaviour
     /// for more freedom in navigating random paths.
     /// Vertical hex lines alternate as: gridwidth + 1 and gridwidth + 2. For simplicity it is easier to force an even gridlength to have equal numbers of each possible width. 
     /// </summary>
-    private void generateWallsHex()
+    private void generateWallsHex() //TODO Remake this using the altered loop, node traversal is correct, wall assignment is not. Probably due to 
     {
         if (_gridLength % 2 != 0)
             _gridLength += 1;
@@ -167,7 +175,7 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                         pos = new Vector3((x * hexWidth - ((hexWidth - _WallWidth) / 2) - depthAdjust) - (hexWidth / 2),
                            0, (y * hexWidth) - (hexWidth - _WallWidth) / 2 + 1 - correction);
                         tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                        tempGO.name = "vertalt" + x + "," + y;
+                        tempGO.name = "vert" + x + "," + y;
                         tempGO.transform.Rotate(-90, 90, 0);
                         translate = new Vector3((_WallWidth * (float)Math.Sqrt(3) / 2), 0, 0);
                         tempGO.transform.Translate(translate);
@@ -195,7 +203,7 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                         pos = new Vector3((x * hexWidth - ((hexWidth - _WallWidth) / 2) - depthAdjust) - (hexWidth / 2),
                             0,(y * hexWidth) - (hexWidth - _WallWidth) / 2 + 1 - correction);
                         tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                        tempGO.name = "vertalt" + x + "," + y;
+                        tempGO.name = "vert" + x + "," + y;
                         tempGO.transform.Rotate(-90, 90, 0);
                         translate = new Vector3((_WallWidth * (float)Math.Sqrt(3) / 2), 0, 0);
                         tempGO.transform.Translate(translate);
@@ -205,13 +213,13 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                         {
                             pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth - correction);
                             tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                            tempGO.name = "downaltflip" + x + "," + y;
+                            tempGO.name = "up" + x + "," + y;
                             tempGO.transform.parent = wallHolder.transform;
                             tempGO.transform.Rotate(-90, -30, 0);
 
                             pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth - correction);
                             tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                            tempGO.name = "upaltflip" + x + "," + y;
+                            tempGO.name = "down" + x + "," + y;
                             tempGO.transform.parent = wallHolder.transform;
                             tempGO.transform.Rotate(-90, -150, 0);
                         }
@@ -219,13 +227,13 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                         {
                             pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth - correction);
                             tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                            tempGO.name = "downalt" + x + "," + y;
+                            tempGO.name = "down" + x + "," + y;
                             tempGO.transform.parent = wallHolder.transform;
                             tempGO.transform.Rotate(-90, -150, 0);
 
                             pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth - correction);
                             tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                            tempGO.name = "upalt" + x + "," + y;
+                            tempGO.name = "up" + x + "," + y;
                             tempGO.transform.parent = wallHolder.transform;
                             tempGO.transform.Rotate(-90, -30, 0);
                         }
@@ -247,13 +255,13 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                             {
                                 pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth + 1 - correction);
                                 tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                                tempGO.name = "downflip" + x + "," + y;
+                                tempGO.name = "up" + x + "," + y;
                                 tempGO.transform.parent = wallHolder.transform;
                                 tempGO.transform.Rotate(-90, -30, 0);
 
                                 pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth + 1 - correction);
                                 tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                                tempGO.name = "upflip" + x + "," + y;
+                                tempGO.name = "down" + x + "," + y;
                                 tempGO.transform.parent = wallHolder.transform;
                                 tempGO.transform.Rotate(-90, -150, 0);
                             }
@@ -273,13 +281,13 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                             {
                                 pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth + 1 - correction);
                                 tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                                tempGO.name = "downflip" + x + "," + y;
+                                tempGO.name = "up" + x + "," + y;
                                 tempGO.transform.parent = wallHolder.transform;
                                 tempGO.transform.Rotate(-90, -30, 0);
 
                                 pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth + 1 - correction);
                                 tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                                tempGO.name = "upflip" + x + "," + y;
+                                tempGO.name = "down" + x + "," + y;
                                 tempGO.transform.parent = wallHolder.transform;
                                 tempGO.transform.Rotate(-90, -150, 0);
                             }
@@ -299,13 +307,13 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                         {
                             pos = new Vector3(x * hexWidth - hexWidth / 2, 0, y * hexWidth - hexWidth + 1 - correction);
                             tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                            tempGO.name = "downflip" + x + "," + y;
+                            tempGO.name = "up" + x + "," + y;
                             tempGO.transform.parent = wallHolder.transform;
                             tempGO.transform.Rotate(-90, -30, 0);
 
                             pos = new Vector3(x * hexWidth, 0, y * hexWidth - hexWidth + 1 - correction);
                             tempGO = Instantiate(wallModel, pos, transform.rotation, wallHolder.transform);
-                            tempGO.name = "upflip" + x + "," + y;
+                            tempGO.name = "down" + x + "," + y;
                             tempGO.transform.parent = wallHolder.transform;
                             tempGO.transform.Rotate(-90, -150, 0);
                         }
@@ -339,6 +347,11 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                 correction += 2;
             }
         }
+        GameObject temp = GameObject.Find(string.Format("down{0},{1}", _gridWidth - 1, 0));
+        if (temp != null)
+        {
+            temp.SendMessage("DestroyParent");
+        }
     }
 
     /// <summary>
@@ -362,12 +375,71 @@ public class RecursiveBacktraceMaze : MonoBehaviour
         }
     }
 
+    private void setNodeNeighboursHex() // think this is the cause of problems but not really any way of telling. deleted walls are attached to the wrong node so most likely here.  
+    {
+        int count = 0;
+
+        for (int y = 0; y < _gridLength; y++)
+        {
+            if (y % 2 == 0)
+            {
+                for (int x = 0; x < _gridWidth - 1; x++)
+                {
+                    string name = string.Format("down{0},{1}", x + 1, y + 1);
+                    _grid._hexNodes[x,y].One = GameObject.Find(name);
+
+                    name = string.Format("vert{0},{1}", x + 1, y);
+                    _grid._hexNodes[x,y].Three = GameObject.Find(name);
+
+                    name = string.Format("up{0},{1}", x + 1, y);
+                    _grid._hexNodes[x,y].Five = GameObject.Find(name);
+
+                    name = string.Format("down{0},{1}", x, y);
+                    _grid._hexNodes[x,y].Seven = GameObject.Find(name);
+
+                    name = string.Format("vert{0},{1}", x, y);
+                    _grid._hexNodes[x,y].Nine = GameObject.Find(name);
+
+                    name = string.Format("up{0},{1}", x, y + 1);
+                    _grid._hexNodes[x,y].Eleven = GameObject.Find(name);
+
+                    count++;
+                }
+            }
+            else
+            {
+                for (int x = 0; x < _gridWidth; x++)
+                {
+                    string name = string.Format("down{0},{1}", x, y + 1);
+                    _grid._hexNodes[x,y].One = GameObject.Find(name);
+
+                    name = string.Format("vert{0},{1}", x + 1, y);
+                    _grid._hexNodes[x,y].Three = GameObject.Find(name);
+
+                    name = string.Format("up{0},{1}", x, y);
+                    _grid._hexNodes[x,y].Five = GameObject.Find(name);
+
+                    name = string.Format("down{0},{1}", x, y);
+                    _grid._hexNodes[x,y].Seven = GameObject.Find(name);
+
+                    name = string.Format("vert{0},{1}", x, y);
+                    _grid._hexNodes[x,y].Nine = GameObject.Find(name);
+
+                    name = string.Format("up{0},{1}", x, y + 1);
+                    _grid._hexNodes[x,y].Eleven = GameObject.Find(name);
+
+                    count++;
+                }
+            }
+        }               
+    }
+
 
     public IEnumerator backTraceMazeQuad()
     {
         //When navigating nodes, up = +gridWidth, down = -gridwidth, left = -1, right = +1
         System.Random rng = new System.Random();
-        int index = 0;
+        int index = _grid._nodes.Length / 2;
         Node currentNode;
         List<int> stackIndexes = new List<int>();
         List<int> visited = new List<int>();
@@ -436,6 +508,7 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                 {
                     stackIndexes.Add(index);
                 }
+
                 if (canUp && canRight && canDown && canLeft) //not on outer wall
                 {
                     int roll = rng.Next(0, 4);
@@ -614,6 +687,7 @@ public class RecursiveBacktraceMaze : MonoBehaviour
                     index -= 1;
                     currentNode.west.SendMessage("DestroyParent");
                 }             
+
                 currentNode = _grid._nodes[index];
                 visited.Add(index);
                 yield return new WaitForSeconds(0.01f);
@@ -634,7 +708,270 @@ public class RecursiveBacktraceMaze : MonoBehaviour
         visited.Clear();
     }
 
+    public IEnumerator backTraceMazeHex() //TODO change possible to vector2, change hexnode[x] to hexnode[x,y]
+    {
+        System.Random rng = new System.Random();
+        int choice;
+        Vector2 index = new Vector2(_gridWidth / 2,(_gridLength - 1) / 2);
+        Vector2 newIndex = new Vector2(0,0);
+        hexNode currentNode = _grid._hexNodes[(int)index.x, (int)index.y];
+        List<Vector2> stackIndexes = new List<Vector2>();
+        List<Vector2> visited = new List<Vector2>();
+        List<int> possible = new List<int>();
+        visited.Add(index);
+        //each node visited should be added to avoid repeating nodes.
 
+        int cellsPerLinePair = _gridWidth * 2 - 1;
+        Debug.Log(cellsPerLinePair);
+
+        do
+        {
+            possible.Clear();
+
+            if (index.x == 0) //LEFT
+            {
+                if (index.y == 0) //BOTTOM
+                {
+                    possible.Add(1);
+                    possible.Add(3);
+                    possible.Add(11);
+                }
+                else if (index.y == _gridLength - 1) //TOP
+                {
+                    if (currentNode.wideRow)
+                    {
+                        possible.Add(3);
+                        possible.Add(5);
+                    }
+                    else
+                    {
+                        possible.Add(3);
+                        possible.Add(5);
+                        possible.Add(7);
+                    }
+                }
+                else
+                {
+                    if (currentNode.isWide)
+                    {
+                        possible.Add(1);
+                        possible.Add(3);
+                        possible.Add(5);
+                    }
+                    else
+                    {
+                        possible.Add(1);
+                        possible.Add(3);
+                        possible.Add(5);
+                        possible.Add(7);
+                        possible.Add(11);            
+                    }
+                    
+                }
+            }
+            else if (currentNode.endNode) //RIGHT
+            {
+                if (index.y == 0) //BOTTOM
+                {
+                    possible.Add(1);
+                    possible.Add(9);
+                    possible.Add(11);
+                }
+                else if (index.y == _gridLength - 1) //TOP
+                {
+                    if (currentNode.wideRow)
+                    {
+                        possible.Add(7);
+                        possible.Add(9);
+                    }
+                    else
+                    {
+                        possible.Add(5);
+                        possible.Add(7);
+                        possible.Add(9);
+                    }
+                }
+                else
+                {
+                    if (currentNode.isWide)
+                    {
+                        possible.Add(7);
+                        possible.Add(9);
+                        possible.Add(11);
+                    }
+                    else
+                    {
+                        possible.Add(1);
+                        possible.Add(5);
+                        possible.Add(7);
+                        possible.Add(9);
+                        possible.Add(11);
+                    }
+                }
+            }
+            else if (index.y == 0) //BOTTOM
+            {
+                possible.Add(1);
+                possible.Add(3);
+                possible.Add(9);
+                possible.Add(11);
+            }
+            else if (index.y == _gridLength - 1) //TOP
+            {
+                possible.Add(3);
+                possible.Add(5);
+                possible.Add(7);
+                possible.Add(9);
+            }
+            else
+            {
+                possible.Add(1);
+                possible.Add(3);
+                possible.Add(5);
+                possible.Add(7);
+                possible.Add(9);
+                possible.Add(11);
+            }
+
+            if (currentNode.isEnd)
+            {
+                possible.Remove(3);
+                if (currentNode.isWide)
+                {
+                    possible.Remove(1);
+                    possible.Remove(5);
+                }
+            }
+
+
+            checkPossible:
+            if (possible.Count != 0)
+            {
+                if (!stackIndexes.Contains(index))
+                {
+                    stackIndexes.Add(index);
+                }
+
+                choice = rng.Next(0, possible.Count);
+
+                if (possible[choice] == 1)
+                {
+                    if (currentNode.isWide)
+                    {
+                        newIndex = new Vector2(index.x, index.y + 1);                        
+                    }
+                    else
+                    {
+                        newIndex = new Vector2(index.x + 1, index.y + 1);
+                    }
+                    if (visited.Contains(newIndex))
+                    {
+                        possible.Remove(1);
+                        goto checkPossible;
+                    }
+                    Debug.Log("choice = 1");
+                    currentNode.One.SendMessage("DestroyParent");
+                }
+                else if (possible[choice] == 3)
+                {
+                    newIndex = new Vector2(index.x + 1, index.y);
+                    if (visited.Contains(newIndex))
+                    {
+                        possible.Remove(3);
+                        goto checkPossible;
+                    }
+                    Debug.Log("choice = 3");
+                    currentNode.Three.SendMessage("DestroyParent");
+                }
+                else if (possible[choice] == 5)
+                {
+                    if (currentNode.isWide)
+                    {
+                        newIndex = new Vector2(index.x, index.y - 1);
+                    }
+                    else
+                    {
+                        newIndex = new Vector2(index.x + 1, index.y - 1);
+                    }
+                    if (visited.Contains(newIndex))
+                    {
+                        possible.Remove(5);
+                        goto checkPossible;
+                    }
+                    Debug.Log("choice = 5");
+                    currentNode.Five.SendMessage("DestroyParent");
+                }
+                else if (possible[choice] == 7)
+                {
+                    if (currentNode.isWide)
+                    {
+                        newIndex = new Vector2(index.x - 1, index.y - 1);
+                    }
+                    else
+                    {
+                        newIndex = new Vector2(index.x, index.y - 1);
+                    }
+                    if (visited.Contains(newIndex))
+                    {
+                        possible.Remove(7);
+                        goto checkPossible;
+                    }
+                    Debug.Log("choice = 7");
+                    currentNode.Seven.SendMessage("DestroyParent");
+                }
+                else if (possible[choice] == 9)
+                {
+                    newIndex = new Vector2(index.x - 1, index.y);
+                    if (visited.Contains(newIndex))
+                    {
+                        possible.Remove(9);
+                        goto checkPossible;
+                    }
+                    Debug.Log("choice = 9");
+                    currentNode.Nine.SendMessage("DestroyParent");
+                }
+                else if (possible[choice] == 11)
+                {
+                    if (currentNode.isWide)
+                    {
+                        newIndex = new Vector2(index.x - 1, index.y + 1);
+                    }
+                    else
+                    {
+                        newIndex = new Vector2(index.x, index.y + 1);
+                    }
+                    if (visited.Contains(newIndex))
+                    {
+                        possible.Remove(11);
+                        goto checkPossible;
+                    }
+                    Debug.Log("choice = 11");
+                    currentNode.Eleven.SendMessage("DestroyParent");
+                }
+
+                Debug.Log(string.Format("moving from node: {0} to {1}", index, newIndex));
+
+                index = newIndex;
+                currentNode = _grid._hexNodes[(int)index.x, (int)index.y];
+                visited.Add(index);
+                yield return new WaitForSeconds(0.01f);
+            }
+            else //current cell has no unvisited neighbours, remove it from the stack and backtrack. 
+            {
+                Debug.Log("no possibles");
+                if (stackIndexes.Count > 0)
+                {
+                    stackIndexes.Remove(index);
+                    if (stackIndexes.Count != 0)
+                    {
+                        index = stackIndexes[stackIndexes.Count - 1];
+                        currentNode = _grid._hexNodes[(int)index.x, (int)index.y];
+                    }
+                }
+            }
+        } while (stackIndexes.Count > 0);
+        visited.Clear();
+    }
 
     public IEnumerator NewMaze()
     {
@@ -642,10 +979,11 @@ public class RecursiveBacktraceMaze : MonoBehaviour
         yield return new WaitForSeconds(0.25f);
         _grid = null;
         _grid = new Grid(_gridWidth, _gridLength);
-        _grid.setupGrid();
+       
         yield return new WaitForSeconds(0.05f);
         if (_wallType == wallType.quad)
         {
+            _grid.setupQuadGrid();
             generateWallsQuad();
             yield return new WaitForSeconds(0.001f);
             setNodeNeighoursQuad();
